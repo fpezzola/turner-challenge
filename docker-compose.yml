@@ -1,0 +1,62 @@
+version: "3.4"
+
+x-common-variables: &common-variables
+  MYSQL_USER: challenge
+  MYSQL_PASSWORD: challenge
+  MYSQL_DATABASE: turner_test
+  REACT_APP_SERVER_PORT: 8000
+
+services:
+  mysql:
+    image: mysql:5.7
+    environment:
+      <<: *common-variables
+      MYSQL_HOST: localhost
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: challenge
+      MYSQL_PASSWORD: challenge
+    ports:
+      - 3306:3306
+    restart: unless-stopped
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+  phpmyadmin:
+    depends_on:
+      - mysql
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: mysql
+    links:
+      - mysql:mysql
+    ports:
+      - 8080:80
+    restart: always
+  server:
+    build: ./turner-back
+    depends_on:
+      - mysql
+      - phpmyadmin
+    expose:
+      - 8000
+    environment:
+      <<: *common-variables
+      MYSQL_HOST_IP: mysql
+      WAIT_HOSTS: mysql:3306
+    ports:
+      - 8000:8000
+    links:
+      - mysql
+      - phpmyadmin
+  client:
+    stdin_open: true
+    tty: true
+    build: ./turner-front
+    depends_on:
+      - server
+    expose:
+      - 3000
+    ports:
+      - 3000:3000
+    links:
+      - server
+    command: npm start
